@@ -13,10 +13,65 @@ parser.add_argument(
 parser.add_argument(
     "poses", nargs="?", default="data.txt", help="Archivo de poses (default: data.txt)"
 )
+parser.add_argument(
+    "--line-width",
+    type=float,
+    default=4.0,
+    help="Grosor de líneas para trayectoria y frustums",
+)
 args = parser.parse_args()
 
 # Cargar nube de puntos
 pcd = o3d.io.read_point_cloud(args.ply)
+
+
+def make_cylinder_segment(p0, p1, radius, color):
+    p0 = np.asarray(p0, dtype=np.float64)
+    p1 = np.asarray(p1, dtype=np.float64)
+    v = p1 - p0
+    length = np.linalg.norm(v)
+    if length < 1e-9:
+        return None
+
+    cyl = o3d.geometry.TriangleMesh.create_cylinder(radius=radius, height=length)
+    cyl.compute_vertex_normals()
+    cyl.paint_uniform_color(color)
+
+    # Open3D cylinder axis is +Z by default; rotate it onto segment direction.
+    z_axis = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+    dir_vec = v / length
+    cross = np.cross(z_axis, dir_vec)
+    cross_norm = np.linalg.norm(cross)
+    dot = np.clip(np.dot(z_axis, dir_vec), -1.0, 1.0)
+
+    if cross_norm < 1e-9:
+        if dot < 0.0:
+            R = o3d.geometry.get_rotation_matrix_from_axis_angle(
+                np.array([np.pi, 0.0, 0.0])
+            )
+            cyl.rotate(R, center=(0.0, 0.0, 0.0))
+    else:
+        axis = cross / cross_norm
+        angle = np.arccos(dot)
+        R = o3d.geometry.get_rotation_matrix_from_axis_angle(axis * angle)
+        cyl.rotate(R, center=(0.0, 0.0, 0.0))
+
+    mid = 0.5 * (p0 + p1)
+    cyl.translate(mid)
+    return cyl
+
+
+def line_set_to_cylinders(line_set, radius):
+    points = np.asarray(line_set.points)
+    lines = np.asarray(line_set.lines)
+    colors = np.asarray(line_set.colors)
+    meshes = []
+    for i, (a, b) in enumerate(lines):
+        color = colors[i].tolist() if i < len(colors) else [1.0, 1.0, 1.0]
+        segment = make_cylinder_segment(points[a], points[b], radius, color)
+        if segment is not None:
+            meshes.append(segment)
+    return meshes
 
 
 def make_camera_frustum(T, size=0.05, color=[1, 0.5, 0]):
@@ -74,5 +129,20 @@ traj.points = o3d.utility.Vector3dVector(centers)
 traj.lines = o3d.utility.Vector2iVector([[i, i + 1] for i in range(len(centers) - 1)])
 traj.colors = o3d.utility.Vector3dVector([[0, 1, 0]] * max(len(centers) - 1, 0))
 
-# Visualizar todo junto
-o3d.visualization.draw_geometries([pcd, traj] + frustums)
+line_radius = max(float(args.line_width), 1e-4)
+traj_meshes = line_set_to_cylinders(traj, line_radius)
+frustum_meshes = []
+for frustum in frustums:
+    frustum_meshes.extend(line_set_to_cylinders(frustum, line_radius))
+
+# Visualizar todo junto con líneas más gruesas
+vis = o3d.visualization.Visualizer()
+vis.create_window(window_name="MASt3R-SLAM Visualizer")
+vis.add_geometry(pcd)
+for mesh in traj_meshes:
+    vis.add_geometry(mesh)
+for mesh in frustum_meshes:
+    vis.add_geometry(mesh)
+
+vis.run()
+vis.destroy_window()

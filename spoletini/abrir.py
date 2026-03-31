@@ -8,6 +8,8 @@ SPOLETINI_DIR = os.path.dirname(os.path.abspath(__file__))
 MAST3R_DIR = os.path.dirname(SPOLETINI_DIR)
 LOGS_DIR = os.path.join(MAST3R_DIR, "logs")
 VISUALIZAR = os.path.join(SPOLETINI_DIR, "visualizar.py")
+# Grosor visual en unidades del mundo (visualizar.py lo renderiza como cilindros)
+LINE_WIDTH = 0.005
 
 # ── Paleta de colores ─────────────────────────────────────────────────────────
 BG = "#1e1e2e"
@@ -45,7 +47,16 @@ def launch(root, folder_name):
         return
 
     root.destroy()
-    subprocess.Popen([sys.executable, VISUALIZAR, ply, poses])
+    subprocess.Popen(
+        [
+            sys.executable,
+            VISUALIZAR,
+            ply,
+            poses,
+            "--line-width",
+            str(LINE_WIDTH),
+        ]
+    )
 
 
 def main():
