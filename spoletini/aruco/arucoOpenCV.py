@@ -1,27 +1,19 @@
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
+import argparse
+import time
 import cv2
 import cv2.aruco as aruco
 import numpy as np
 
 
-class ArucoNode(Node):
+class ArucoDetector:
     def __init__(self):
-        super().__init__("aruco_detector")
-
-        self.bridge = CvBridge()
-        self.sub = self.create_subscription(Image, "/image_raw", self.callback, 10)
-
         self.dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
         self.marker_length_m = 0.05
         self.axis_length_m = 0.03
         self.camera_matrix = None
         self.dist_coeffs = np.zeros((5, 1), dtype=np.float32)
 
-    def callback(self, msg):
-        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+    def process_frame(self, frame):
 
         corners, ids, _ = aruco.detectMarkers(frame, self.dict)
 
@@ -58,16 +50,65 @@ class ArucoNode(Node):
                     self.axis_length_m,
                 )
 
-        cv2.imshow("Aruco", frame)
-        cv2.waitKey(1)
+        return frame
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Aruco detector sobre video o webcam")
+    parser.add_argument(
+        "--video",
+        type=str,
+        default=None,
+        help="Ruta al archivo de video. Si no se indica, se usa la webcam.",
+    )
+    parser.add_argument(
+        "--camera-index",
+        type=int,
+        default=0,
+        help="Indice de cámara a usar cuando no se pasa --video.",
+    )
+    return parser.parse_args()
 
 
 def main():
-    rclpy.init()
-    node = ArucoNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    args = parse_args()
+    detector = ArucoDetector()
+
+    if args.video is not None:
+        cap = cv2.VideoCapture(args.video)
+        source_name = args.video
+    else:
+        cap = cv2.VideoCapture(args.camera_index)
+        source_name = f"camera index {args.camera_index}"
+
+    if not cap.isOpened():
+        raise RuntimeError(f"No se pudo abrir la fuente de video: {source_name}")
+
+    source_fps = cap.get(cv2.CAP_PROP_FPS)
+    if source_fps is None or source_fps <= 0:
+        source_fps = 30.0
+    frame_period_s = 1.0 / source_fps
+
+    try:
+        while True:
+            loop_start = time.perf_counter()
+            ok, frame = cap.read()
+            if not ok:
+                break
+
+            output = detector.process_frame(frame)
+            cv2.imshow("Aruco", output)
+
+            elapsed_s = time.perf_counter() - loop_start
+            remaining_s = max(0.0, frame_period_s - elapsed_s)
+            wait_ms = max(1, int(round(remaining_s * 1000.0)))
+
+            key = cv2.waitKey(wait_ms) & 0xFF
+            if key == ord("q"):
+                break
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":

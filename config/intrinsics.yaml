@@ -1,9 +1,9 @@
-# EuRoC dataset camera intrinsics for the left camera (cam0)
-width: 752
-height: 480
+# Intrinsics for monocular IP camera
+width: 1920
+height: 1080
 # With distortion (fx, fy, cx, cy, k1, k2, p1, p2)
-calibration: [458.654, 457.296, 367.215, 248.375, -0.28340811, 0.07395907, 0.00019359, 1.76187114e-05]
+calibration: [1429.934815, 1429.357257, 949.691220, 532.500794, 0.069962, -0.125644, 0.001750, -0.004124]
 
 # Without distortion (fx, fy, cx, cy)
-# calibration:  [517.3, 516.5, 318.6, 255.3]
+# calibration: [1429.934815, 1429.357257, 949.691220, 532.500794]
 
