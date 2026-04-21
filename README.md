@@ -1,7 +1,6 @@
-[comment]: <> (# MASt3R-SLAM: Real-Time Dense SLAM with 3D Reconstruction Priors)
-
 <p align="center">
   <h1 align="center">MASt3R-SLAM: Real-Time Dense SLAM with 3D Reconstruction Priors</h1>
+  <h2 align="center">Adaptations for running in low VRAM enviroments and visualization tools added</h2>
   <p align="center">
     <a href="https://rmurai.co.uk/"><strong>Riku Murai*</strong></a>
     ·
