@@ -97,7 +97,7 @@ Nodo encargado de leer las imagenes del dataset y publicar las poses de los marc
 
 Para inicializar el nodo es necesario correr el siguiente comando:
 ```bash
-python3 nombre_del_paquete aruco_marker_detector --dict <aruco_dictionary> --size <marker_size> --viz <visualize>
+python3 aruco_marker_detector --dict <aruco_dictionary> --size <marker_size> --viz <visualize>
 ```
 
 Los argumentos del comando son:
